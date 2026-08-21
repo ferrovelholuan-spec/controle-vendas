@@ -1,0 +1,10 @@
+{
+  "name": "Controle de Vendas",
+  "short_name": "Vendas",
+  "description": "Sistema de Controle de Vendas",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#174a72",
+  "orientation": "portrait"
+}
