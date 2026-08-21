@@ -183,12 +183,9 @@ function delMat(i){if(confirm('Excluir material? Vendas antigas serão mantidas.
 function delFunc(i){if(confirm('Excluir funcionário? Vendas antigas serão mantidas.')){db.funcionarios.splice(i,1);save();renderTudo()}}
 function renderTudo(){fill();updateTotal();renderHistorico();if(session.role==='admin')renderResumo();if(session.role==='admin')renderCad()}
 document.getElementById('material').onchange=updateTotal;document.getElementById('peso').oninput=updateTotal;
-<script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js");
   });
-}
-</script>
 </body>
 </html>
