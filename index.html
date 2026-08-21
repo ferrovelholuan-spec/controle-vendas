@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Controle de Vendas - TESTE</title>
+  <link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#174a72">
 <style>
 :root{--blue:#174a72;--bg:#f4f6f8;--card:#fff;--text:#17212b;--muted:#667085;--green:#16803c;--red:#b42318}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
@@ -181,6 +183,13 @@ function delMat(i){if(confirm('Excluir material? Vendas antigas serão mantidas.
 function delFunc(i){if(confirm('Excluir funcionário? Vendas antigas serão mantidas.')){db.funcionarios.splice(i,1);save();renderTudo()}}
 function renderTudo(){fill();updateTotal();renderHistorico();if(session.role==='admin')renderResumo();if(session.role==='admin')renderCad()}
 document.getElementById('material').onchange=updateTotal;document.getElementById('peso').oninput=updateTotal;
+</script>
+  <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js");
+  });
+}
 </script>
 </body>
 </html>
