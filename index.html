@@ -185,8 +185,9 @@ function renderTudo(){fill();updateTotal();renderHistorico();if(session.role==='
 document.getElementById('material').onchange=updateTotal;document.getElementById('peso').oninput=updateTotal;
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js");
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
   });
+}
 </script>
 </body>
 </html>
