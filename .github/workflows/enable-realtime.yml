@@ -1,0 +1,48 @@
+name: Ativar sincronizacao em tempo real
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ativar Realtime no aplicativo
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          tag = '<script src="./realtime2.js?v=1"></script>'
+          if tag not in s:
+              s = s.replace('</body>', tag + '</body>')
+              p.write_text(s, encoding='utf-8')
+
+      - name: Atualizar Service Worker
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('sw.js')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('ferro-velho-pwa-v3', 'ferro-velho-pwa-v4')
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit da correção
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html sw.js
+          if git diff --cached --quiet; then
+            echo "Nenhuma alteração necessária."
+          else
+            git commit -m "Ativa sincronizacao Realtime e atualiza PWA"
+            git push
+          fi
