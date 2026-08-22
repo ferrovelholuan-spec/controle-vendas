@@ -29,7 +29,6 @@ body{
 }
 
 button,input,select{font:inherit}
-
 .hidden{display:none!important}
 
 .login{
@@ -88,6 +87,11 @@ input,select{
   color:#fff;
   font-weight:700;
   cursor:pointer
+}
+
+.primary:disabled{
+  opacity:.6;
+  cursor:not-allowed
 }
 
 .demo{
@@ -156,7 +160,6 @@ main{
 }
 
 .tab{display:none}
-
 .tab.active{display:block}
 
 .card{
@@ -230,8 +233,7 @@ main{
   background:#fff
 }
 
-.table th,
-.table td{
+.table th,.table td{
   padding:10px;
   border-bottom:1px solid #eee;
   text-align:left;
@@ -267,12 +269,16 @@ main{
 }
 
 .status{
-  margin-top:10px;
-  padding:10px;
+  position:fixed;
+  right:12px;
+  bottom:12px;
+  background:#17212b;
+  color:white;
+  padding:8px 12px;
   border-radius:8px;
-  background:#eef5fa;
-  color:#174a72;
-  font-size:13px
+  font-size:12px;
+  z-index:9999;
+  opacity:.9
 }
 
 @media(max-width:600px){
@@ -307,7 +313,7 @@ main{
       <input id="loginPass" type="password" placeholder="Digite a senha">
     </div>
 
-    <button class="primary" onclick="login()">
+    <button id="loginButton" class="primary" onclick="login()">
       ENTRAR
     </button>
 
@@ -396,20 +402,11 @@ Total da venda:
 </div>
 
 
-<button
-  class="primary"
-  style="margin-top:14px"
-  onclick="registrarVenda()"
->
+<button class="primary" style="margin-top:14px" onclick="registrarVenda()">
 REGISTRAR VENDA
 </button>
 
-
 <div id="msg" class="msg"></div>
-
-<div id="connectionStatus" class="status">
-Conectando ao banco...
-</div>
 
 </div>
 
@@ -444,11 +441,7 @@ Conectando ao banco...
 <select id="fmat"></select>
 </div>
 
-<button
-  class="primary"
-  style="max-width:150px"
-  onclick="renderHistorico()"
->
+<button class="primary" style="max-width:150px" onclick="renderHistorico()">
 Filtrar
 </button>
 
@@ -462,7 +455,6 @@ Filtrar
 <table>
 
 <thead>
-
 <tr>
 <th>Data</th>
 <th>Funcionário</th>
@@ -472,7 +464,6 @@ Filtrar
 <th>Total</th>
 <th></th>
 </tr>
-
 </thead>
 
 <tbody id="tabela"></tbody>
@@ -577,23 +568,16 @@ Filtrar
 
 </div>
 
-
-<button
-  class="primary"
-  style="margin-top:12px"
-  onclick="addMaterial()"
->
+<button class="primary" style="margin-top:12px" onclick="addMaterial()">
 Adicionar material
 </button>
 
+<div class="table" style="margin-top:14px">
 
-<div
-  class="table"
-  style="margin-top:14px"
->
 <table>
 <tbody id="cadMat"></tbody>
 </table>
+
 </div>
 
 </div>
@@ -622,23 +606,16 @@ Adicionar material
 
 </div>
 
-
-<button
-  class="primary"
-  style="margin-top:12px"
-  onclick="addFuncionario()"
->
+<button class="primary" style="margin-top:12px" onclick="addFuncionario()">
 Adicionar funcionário
 </button>
 
+<div class="table" style="margin-top:14px">
 
-<div
-  class="table"
-  style="margin-top:14px"
->
 <table>
 <tbody id="cadFunc"></tbody>
 </table>
+
 </div>
 
 </div>
@@ -650,189 +627,77 @@ Adicionar funcionário
 </div>
 
 
+<div id="status" class="status">
+Conectando ao banco...
+</div>
+
+
+<!-- SUPABASE -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
 <script>
 
 const SUPABASE_URL =
-'https://ymajmuqhlrxqxxrgaung.supabase.co';
+"https://ymajmuqhlrxqxxrgaung.supabase.co";
 
 const SUPABASE_KEY =
-'sb_publishable_eKouIpYxnATga0FCuv33Jg_vd6xtCD_';
+"sb_publishable_eKouIpYxnATga0FCuv33Jg_vd6xtCD_";
 
 
-const headers = {
-
-'apikey': SUPABASE_KEY,
-
-'Authorization':
-`Bearer ${SUPABASE_KEY}`,
-
-'Content-Type':
-'application/json'
-
-};
+const supabaseClient =
+window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
 
 
 let db = {
-
-materiais:[],
-
-funcionarios:[],
-
-vendas:[]
-
+  materiais: [],
+  funcionarios: [],
+  vendas: []
 };
-
 
 let session = null;
 
 
-async function api(path, options = {}){
+function status(text){
 
-  const response =
-  await fetch(
-    `${SUPABASE_URL}/rest/v1/${path}`,
-    {
-      ...options,
+  const e =
+    document.getElementById("status");
 
-      headers:{
-        ...headers,
-        ...(options.headers || {})
-      }
-    }
-  );
-
-
-  if(!response.ok){
-
-    const text =
-    await response.text();
-
-    throw new Error(
-      text ||
-      `Erro HTTP ${response.status}`
-    );
-  }
-
-
-  if(response.status === 204){
-
-    return null;
-
-  }
-
-
-  const text =
-  await response.text();
-
-
-  return text
-    ? JSON.parse(text)
-    : null;
-
-}
-
-
-async function carregarBanco(){
-
-  try{
-
-    const resultado =
-    await Promise.all([
-
-      api('funcionarios?select=*'),
-
-      api('materiais?select=*'),
-
-      api('vendas?select=*')
-
-    ]);
-
-
-    db.funcionarios =
-    resultado[0] || [];
-
-    db.materiais =
-    resultado[1] || [];
-
-    db.vendas =
-    resultado[2] || [];
-
-
-    const status =
-    document.getElementById(
-      'connectionStatus'
-    );
-
-    if(status){
-
-      status.textContent =
-      'Banco sincronizado ✓';
-
-    }
-
-
-    return true;
-
-  }catch(error){
-
-    console.error(error);
-
-    const status =
-    document.getElementById(
-      'connectionStatus'
-    );
-
-    if(status){
-
-      status.textContent =
-      'Erro ao conectar ao banco.';
-
-    }
-
-    return false;
-
+  if(e){
+    e.textContent = text;
   }
 
 }
 
 
-function brl(value){
+function brl(v){
 
   return new Intl.NumberFormat(
-    'pt-BR',
+    "pt-BR",
     {
-      style:'currency',
-      currency:'BRL'
+      style:"currency",
+      currency:"BRL"
     }
-  ).format(
-    Number(value) || 0
-  );
+  ).format(Number(v)||0);
 
 }
 
 
-function esc(value){
+function esc(s){
 
-  return String(
-    value ?? ''
-  ).replace(
-    /[&<>"']/g,
+  return String(s ?? "")
+    .replace(/[&<>"']/g,m=>({
 
-    function(match){
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#039;"
 
-      return {
-
-        '&':'&amp;',
-        '<':'&lt;',
-        '>':'&gt;',
-        '"':'&quot;',
-        "'":'&#039;'
-
-      }[match];
-
-    }
-
-  );
+    }[m]));
 
 }
 
@@ -846,58 +711,161 @@ function today(){
 }
 
 
+/* =========================
+   CARREGAR BANCO
+========================= */
+
+async function carregarBanco(){
+
+  status("Carregando dados...");
+
+  try{
+
+    const [
+      materiaisRes,
+      funcionariosRes,
+      vendasRes
+    ] = await Promise.all([
+
+      supabaseClient
+        .from("materiais")
+        .select("*")
+        .order("id"),
+
+      supabaseClient
+        .from("funcionarios")
+        .select("*")
+        .order("id"),
+
+      supabaseClient
+        .from("vendas")
+        .select("*")
+        .order("id",{ascending:false})
+
+    ]);
+
+
+    if(materiaisRes.error)
+      throw materiaisRes.error;
+
+    if(funcionariosRes.error)
+      throw funcionariosRes.error;
+
+    if(vendasRes.error)
+      throw vendasRes.error;
+
+
+    db.materiais =
+      materiaisRes.data || [];
+
+
+    db.funcionarios =
+      funcionariosRes.data || [];
+
+
+    db.vendas =
+      (vendasRes.data || []).map(v=>({
+
+        id:v.id,
+
+        data:v.data,
+
+        funcionario:v.funcionario,
+
+        material:v.material,
+
+        peso:Number(v.peso),
+
+        preco:Number(v.preco),
+
+        total:Number(v.total),
+
+        obs:v.observacao || ""
+
+      }));
+
+
+    status("Banco sincronizado ✓");
+
+
+    if(session){
+
+      renderTudo();
+
+    }
+
+
+  }catch(error){
+
+    console.error(error);
+
+    status("Erro ao conectar ao banco");
+
+    alert(
+      "Não foi possível carregar os dados do Supabase.\n\n"+
+      (error.message || error)
+    );
+
+  }
+
+}
+
+
+/* =========================
+   LOGIN
+========================= */
+
 async function login(){
 
-  const usuario =
-  document.getElementById(
-    'loginUser'
-  ).value.trim();
+  const u =
+    document
+      .getElementById("loginUser")
+      .value
+      .trim();
 
-  const senha =
-  document.getElementById(
-    'loginPass'
-  ).value;
+  const p =
+    document
+      .getElementById("loginPass")
+      .value;
+
+
+  const button =
+    document.getElementById("loginButton");
+
+  button.disabled = true;
+
+  const loginMsg =
+    document.getElementById("loginMsg");
 
 
   try{
 
-    if(
-      usuario === 'admin' &&
-      senha === '1234'
-    ){
+    await carregarBanco();
 
-      session = {
 
-        role:'admin',
+    if(u==="admin" && p==="1234"){
 
-        name:'Administrador'
-
+      session={
+        role:"admin",
+        name:"Administrador"
       };
 
     }else{
 
-      const funcionarios =
-      await api(
-        `funcionarios?usuario=eq.${encodeURIComponent(usuario)}&senha=eq.${encodeURIComponent(senha)}&select=*`
-      );
+      const f =
+        db.funcionarios.find(
+          x =>
+            x.usuario === u &&
+            x.senha === p
+        );
 
 
-      const funcionario =
-      funcionarios?.[0];
+      if(f){
 
-
-      if(funcionario){
-
-        session = {
-
-          role:'func',
-
-          name:funcionario.nome,
-
-          user:funcionario.usuario,
-
-          id:funcionario.id
-
+        session={
+          role:"func",
+          name:f.nome,
+          user:f.usuario
         };
 
       }
@@ -907,493 +875,399 @@ async function login(){
 
     if(!session){
 
-      const mensagem =
-      document.getElementById(
-        'loginMsg'
-      );
+      loginMsg.textContent =
+        "Usuário ou senha inválidos.";
 
-      mensagem.textContent =
-      'Usuário ou senha inválidos.';
+      loginMsg.className =
+        "msg err";
 
-      mensagem.className =
-      'msg err';
+      button.disabled = false;
 
       return;
 
     }
 
 
-    document.getElementById(
-      'loginView'
-    ).classList.add('hidden');
+    document
+      .getElementById("loginView")
+      .classList.add("hidden");
 
 
-    document.getElementById(
-      'appView'
-    ).classList.remove('hidden');
+    document
+      .getElementById("appView")
+      .classList.remove("hidden");
 
 
-    await startApp();
+    startApp();
 
 
   }catch(error){
 
     console.error(error);
 
-    const mensagem =
-    document.getElementById(
-      'loginMsg'
-    );
+    loginMsg.textContent =
+      "Erro ao conectar ao banco.";
 
-    mensagem.textContent =
-    'Erro ao conectar ao banco.';
-
-    mensagem.className =
-    'msg err';
+    loginMsg.className =
+      "msg err";
 
   }
+
+
+  button.disabled = false;
 
 }
 
 
 function logout(){
 
-  session = null;
+  session=null;
 
-  document.getElementById(
-    'appView'
-  ).classList.add('hidden');
-
-
-  document.getElementById(
-    'loginView'
-  ).classList.remove('hidden');
+  document
+    .getElementById("appView")
+    .classList.add("hidden");
 
 
-  document.getElementById(
-    'loginPass'
-  ).value = '';
+  document
+    .getElementById("loginView")
+    .classList.remove("hidden");
+
+
+  document
+    .getElementById("loginPass")
+    .value="";
 
 }
 
 
-async function startApp(){
+/* =========================
+   APP
+========================= */
 
-  await carregarBanco();
+function startApp(){
 
-
-  document.getElementById(
-    'who'
-  ).textContent =
-
-  session.role === 'admin'
-
-    ? 'Administrador'
-
-    : 'Funcionário: ' +
-      session.name;
+  document
+    .getElementById("who")
+    .textContent =
+      session.role==="admin"
+      ? "Administrador"
+      : "Funcionário: "+session.name;
 
 
   const nav =
-  document.getElementById('nav');
+    document.getElementById("nav");
 
 
   nav.innerHTML =
 
-  (
-    session.role === 'admin'
+    (session.role==="admin"
 
-      ?
+      ? '<button class="nav active" data-id="resumo">Painel</button>'
 
-      '<button class="nav active" data-id="resumo">Painel</button>'
+      : '') +
 
-      :
+    '<button class="nav" data-id="venda">Registrar venda</button>' +
 
-      ''
-  )
+    '<button class="nav" data-id="historico">Histórico</button>' +
 
-  +
+    (session.role==="admin"
 
-  '<button class="nav" data-id="venda">Registrar venda</button>'
+      ? '<button class="nav" data-id="cadastro">Cadastros</button>'
 
-  +
-
-  '<button class="nav" data-id="historico">Histórico</button>'
-
-  +
-
-  (
-    session.role === 'admin'
-
-      ?
-
-      '<button class="nav" data-id="cadastro">Cadastros</button>'
-
-      :
-
-      ''
-  );
+      : '');
 
 
   document
-  .querySelectorAll('.nav')
-  .forEach(button => {
+    .querySelectorAll(".nav")
+    .forEach(b=>{
 
-    button.onclick =
-    async function(){
+      b.onclick=()=>{
 
-      await carregarBanco();
+        openTab(
+          b.dataset.id,
+          b
+        );
 
-      openTab(
-        button.dataset.id,
-        button
-      );
+      };
 
-      await renderTudo();
+    });
 
-    };
 
-  });
+  const first =
+    session.role==="admin"
+      ? document.querySelector('[data-id="resumo"]')
+      : document.querySelector('[data-id="venda"]');
 
 
   openTab(
-
-    session.role === 'admin'
-      ? 'resumo'
-      : 'venda',
-
-    document.querySelector(
-      '.nav.active'
-    ) ||
-    document.querySelector(
-      '.nav'
-    )
-
+    session.role==="admin"
+      ? "resumo"
+      : "venda",
+    first
   );
 
 
-  await renderTudo();
+  renderTudo();
 
 }
 
 
-function openTab(id, button){
+/* =========================
+   ABRIR ABA
+========================= */
+
+function openTab(id,btn){
 
   document
-  .querySelectorAll('.nav')
-  .forEach(
-    x => x.classList.remove(
-      'active'
-    )
-  );
-
-
-  if(button){
-
-    button.classList.add(
-      'active'
+    .querySelectorAll(".nav")
+    .forEach(x=>
+      x.classList.remove("active")
     );
 
-  }
+
+  if(btn)
+    btn.classList.add("active");
 
 
   document
-  .querySelectorAll('.tab')
-  .forEach(
-    x => x.classList.remove(
-      'active'
-    )
-  );
+    .querySelectorAll(".tab")
+    .forEach(x=>
+      x.classList.remove("active")
+    );
 
 
   const tab =
-  document.getElementById(id);
+    document.getElementById(id);
 
 
-  if(tab){
-
-    tab.classList.add(
-      'active'
-    );
-
-  }
+  if(tab)
+    tab.classList.add("active");
 
 }
 
+
+/* =========================
+   PREENCHER SELECTS
+========================= */
 
 function fill(){
 
-  const funcionarioSelect =
-  document.getElementById(
-    'funcionario'
-  );
+  const fsel =
+    document.getElementById("funcionario");
 
-  const filtroFuncionario =
-  document.getElementById(
-    'ffunc'
-  );
+  const ff =
+    document.getElementById("ffunc");
 
-  const materialSelect =
-  document.getElementById(
-    'material'
-  );
+  const ms =
+    document.getElementById("material");
 
-  const filtroMaterial =
-  document.getElementById(
-    'fmat'
-  );
+  const fm =
+    document.getElementById("fmat");
 
 
-  const funcionarios =
-  db.funcionarios || [];
+  const funcs =
+    db.funcionarios.map(f=>f.nome);
 
 
-  const materiais =
-  db.materiais || [];
+  fsel.innerHTML =
+    '<option value="">Selecione...</option>' +
+
+    funcs.map(f=>
+      `<option>${esc(f)}</option>`
+    ).join("");
 
 
-  funcionarioSelect.innerHTML =
+  ff.innerHTML =
+    '<option value="">Todos</option>' +
 
-  '<option value="">Selecione...</option>' +
-
-  funcionarios
-  .map(
-    funcionario =>
-
-    `<option value="${esc(funcionario.nome)}">${esc(funcionario.nome)}</option>`
-  )
-  .join('');
+    funcs.map(f=>
+      `<option>${esc(f)}</option>`
+    ).join("");
 
 
-  filtroFuncionario.innerHTML =
+  ms.innerHTML =
+    '<option value="">Selecione...</option>' +
 
-  '<option value="">Todos</option>' +
-
-  funcionarios
-  .map(
-    funcionario =>
-
-    `<option value="${esc(funcionario.nome)}">${esc(funcionario.nome)}</option>`
-  )
-  .join('');
+    db.materiais.map(m=>
+      `<option>${esc(m.nome)}</option>`
+    ).join("");
 
 
-  materialSelect.innerHTML =
+  fm.innerHTML =
+    '<option value="">Todos</option>' +
 
-  '<option value="">Selecione...</option>' +
-
-  materiais
-  .map(
-    material =>
-
-    `<option value="${esc(material.nome)}">${esc(material.nome)}</option>`
-  )
-  .join('');
+    db.materiais.map(m=>
+      `<option>${esc(m.nome)}</option>`
+    ).join("");
 
 
-  filtroMaterial.innerHTML =
+  if(session?.role==="func"){
 
-  '<option value="">Todos</option>' +
+    fsel.value =
+      session.name;
 
-  materiais
-  .map(
-    material =>
+    fsel.disabled=true;
 
-    `<option value="${esc(material.nome)}">${esc(material.nome)}</option>`
-  )
-  .join('');
+    document
+      .getElementById("funcWrap")
+      .style.display="none";
 
 
-  if(
-    session?.role === 'func'
-  ){
-
-    funcionarioSelect.value =
-    session.name;
-
-    funcionarioSelect.disabled =
-    true;
-
-    document.getElementById(
-      'funcWrap'
-    ).style.display =
-    'none';
-
-    document.getElementById(
-      'fFuncWrap'
-    ).style.display =
-    'none';
+    document
+      .getElementById("fFuncWrap")
+      .style.display="none";
 
   }else{
 
-    funcionarioSelect.disabled =
-    false;
+    fsel.disabled=false;
 
-    document.getElementById(
-      'funcWrap'
-    ).style.display =
-    '';
+    document
+      .getElementById("funcWrap")
+      .style.display="block";
 
-    document.getElementById(
-      'fFuncWrap'
-    ).style.display =
-    '';
+
+    document
+      .getElementById("fFuncWrap")
+      .style.display="block";
 
   }
 
 
-  document.getElementById(
-    'data'
-  ).value ||= today();
+  const data =
+    document.getElementById("data");
+
+  if(!data.value)
+    data.value=today();
 
 }
 
+
+/* =========================
+   TOTAL
+========================= */
 
 function updateTotal(){
 
   const material =
-  db.materiais.find(
-    item =>
-    item.nome ===
-    document.getElementById(
-      'material'
-    ).value
-  );
+    document.getElementById("material").value;
 
 
   const peso =
-  Number(
-    document.getElementById(
-      'peso'
-    ).value
-  ) || 0;
+    Number(
+      document.getElementById("peso").value
+    ) || 0;
 
 
-  document.getElementById(
-    'preco'
-  ).value =
-
-  material
-    ? brl(material.preco)
-    : '';
+  const m =
+    db.materiais.find(
+      x=>x.nome===material
+    );
 
 
-  document.getElementById(
-    'total'
-  ).textContent =
+  document.getElementById("preco").value =
+    m ? brl(m.preco) : "";
 
-  material
-    ? brl(
-        peso *
-        Number(material.preco)
-      )
-    : brl(0);
+
+  document.getElementById("total").textContent =
+    m
+      ? brl(peso * Number(m.preco))
+      : brl(0);
 
 }
 
 
-function showMsg(text, ok = true){
+/* =========================
+   MENSAGEM
+========================= */
 
-  const elemento =
-  document.getElementById(
-    'msg'
-  );
+function showMsg(text,ok=true){
 
-
-  elemento.textContent =
-  text;
+  const e =
+    document.getElementById("msg");
 
 
-  elemento.className =
-  'msg ' +
-  (
-    ok
-      ? 'ok'
-      : 'err'
-  );
+  e.textContent=text;
+
+  e.className =
+    "msg "+(ok ? "ok" : "err");
 
 
   setTimeout(
-    () => {
-      elemento.className =
-      'msg';
-    },
+    ()=>e.className="msg",
     3000
   );
 
 }
 
 
+/* =========================
+   REGISTRAR VENDA
+========================= */
+
 async function registrarVenda(){
 
-  try{
-
-    const data =
-    document.getElementById(
-      'data'
-    ).value;
+  if(!session) return;
 
 
-    const funcionario =
+  const data =
+    document.getElementById("data").value;
 
-    session.role === 'func'
 
+  const funcionario =
+    session.role==="func"
       ? session.name
-
-      : document.getElementById(
-          'funcionario'
-        ).value;
+      : document.getElementById("funcionario").value;
 
 
-    const material =
-    document.getElementById(
-      'material'
-    ).value;
+  const material =
+    document.getElementById("material").value;
 
 
-    const peso =
+  const peso =
     Number(
-      document.getElementById(
-        'peso'
-      ).value
+      document.getElementById("peso").value
     ) || 0;
 
 
-    const materialDB =
+  const obs =
+    document
+      .getElementById("obs")
+      .value
+      .trim();
+
+
+  const m =
     db.materiais.find(
-      item =>
-      item.nome === material
+      x=>x.nome===material
     );
 
 
-    if(
-      !data ||
-      !funcionario ||
-      !materialDB ||
-      peso <= 0
-    ){
+  if(
+    !data ||
+    !funcionario ||
+    !m ||
+    peso<=0
+  ){
 
-      showMsg(
-        'Preencha todos os campos obrigatórios e informe um peso maior que zero.',
-        false
-      );
+    showMsg(
+      "Preencha todos os campos obrigatórios e informe um peso maior que zero.",
+      false
+    );
 
-      return;
+    return;
 
-    }
+  }
 
 
-    await api(
-      'vendas',
-      {
-        method:'POST',
+  status("Salvando venda...");
 
-        headers:{
-          'Prefer':
-          'return=minimal'
-        },
 
-        body:JSON.stringify({
+  try{
+
+    const {data:novo,error} =
+      await supabaseClient
+        .from("vendas")
+        .insert({
 
           data:data,
 
@@ -1403,48 +1277,60 @@ async function registrarVenda(){
 
           peso:peso,
 
-          preco:Number(
-            materialDB.preco
-          ),
+          preco:Number(m.preco),
 
-          total:
-          peso *
-          Number(
-            materialDB.preco
-          ),
+          total:peso*Number(m.preco),
 
-          obs:
-          document.getElementById(
-            'obs'
-          ).value.trim()
+          observacao:obs
 
         })
-
-      }
-    );
-
-
-    await carregarBanco();
+        .select()
+        .single();
 
 
-    document.getElementById(
-      'peso'
-    ).value = '';
+    if(error)
+      throw error;
 
 
-    document.getElementById(
-      'obs'
-    ).value = '';
+    db.vendas.unshift({
+
+      id:novo.id,
+
+      data:novo.data,
+
+      funcionario:novo.funcionario,
+
+      material:novo.material,
+
+      peso:Number(novo.peso),
+
+      preco:Number(novo.preco),
+
+      total:Number(novo.total),
+
+      obs:novo.observacao || ""
+
+    });
+
+
+    document
+      .getElementById("peso")
+      .value="";
+
+
+    document
+      .getElementById("obs")
+      .value="";
 
 
     updateTotal();
 
+    renderTudo();
 
-    await renderTudo();
-
+    status("Venda sincronizada ✓");
 
     showMsg(
-      'Venda registrada com sucesso e sincronizada!'
+      "Venda registrada com sucesso!"
     );
 
 
@@ -1452,8 +1338,11 @@ async function registrarVenda(){
 
     console.error(error);
 
+    status("Erro ao salvar");
+
     showMsg(
-      'Erro ao registrar a venda.',
+      "Erro ao registrar venda: "+
+      (error.message || error),
       false
     );
 
@@ -1462,211 +1351,168 @@ async function registrarVenda(){
 }
 
 
+/* =========================
+   VENDAS VISÍVEIS
+========================= */
+
 function visibleSales(){
 
-  if(
-    session.role === 'admin'
-  ){
-
-    return db.vendas || [];
-
-  }
+  if(session.role==="admin")
+    return db.vendas;
 
 
-  return (
-    db.vendas || []
-  ).filter(
-    venda =>
-    venda.funcionario ===
-    session.name
+  return db.vendas.filter(
+    v=>v.funcionario===session.name
   );
 
 }
 
+
+/* =========================
+   HISTÓRICO
+========================= */
 
 function renderHistorico(){
 
-  const inicio =
-  document.getElementById(
-    'fini'
-  ).value;
+  const ini =
+    document.getElementById("fini").value;
 
 
   const fim =
-  document.getElementById(
-    'ffim'
-  ).value;
+    document.getElementById("ffim").value;
 
 
-  const funcionario =
-  document.getElementById(
-    'ffunc'
-  ).value;
+  const f =
+    document.getElementById("ffunc").value;
 
 
-  const material =
-  document.getElementById(
-    'fmat'
-  ).value;
+  const m =
+    document.getElementById("fmat").value;
 
 
-  const vendas =
-  visibleSales()
-  .filter(
-    venda =>
-
-    (!inicio ||
-      venda.data >= inicio)
-
-    &&
-
-    (!fim ||
-      venda.data <= fim)
-
-    &&
-
-    (!funcionario ||
-      venda.funcionario === funcionario)
-
-    &&
-
-    (!material ||
-      venda.material === material)
-
-  )
-  .sort(
-    (a,b) =>
-    Number(b.id || 0) -
-    Number(a.id || 0)
-  );
+  let arr =
+    visibleSales()
+      .filter(v=>
+        (!ini || v.data>=ini) &&
+        (!fim || v.data<=fim) &&
+        (!f || v.funcionario===f) &&
+        (!m || v.material===m)
+      )
+      .sort(
+        (a,b)=>
+          new Date(b.data)-new Date(a.data) ||
+          Number(b.id)-Number(a.id)
+      );
 
 
-  document.getElementById(
-    'tabela'
-  ).innerHTML =
+  document.getElementById("tabela").innerHTML =
 
-  vendas.length
+    arr.map(v=>`
 
-  ?
+      <tr>
 
-  vendas.map(
-    venda => `
+        <td>
+          ${v.data.split("-").reverse().join("/")}
+        </td>
 
-    <tr>
+        <td>
+          ${esc(v.funcionario)}
+        </td>
 
-      <td>
-        ${String(venda.data)
-          .split('-')
-          .reverse()
-          .join('/')}
-      </td>
+        <td>
+          ${esc(v.material)}
+        </td>
 
-      <td>
-        ${esc(venda.funcionario)}
-      </td>
+        <td>
+          ${Number(v.peso).toFixed(2)}
+        </td>
 
-      <td>
-        ${esc(venda.material)}
-      </td>
+        <td>
+          ${brl(v.preco)}
+        </td>
 
-      <td>
-        ${Number(venda.peso).toFixed(2)}
-      </td>
+        <td>
+          ${brl(v.total)}
+        </td>
 
-      <td>
-        ${brl(venda.preco)}
-      </td>
+        <td>
 
-      <td>
-        ${brl(venda.total)}
-      </td>
+          ${
+            session.role==="admin"
 
-      <td>
+            ? `<button
+                 class="danger"
+                 onclick="delVenda(${v.id})">
+                 Excluir
+               </button>`
 
-        ${
-          session.role === 'admin'
+            : ""
 
-          ?
+          }
 
-          `<button
-             class="danger"
-             onclick="delVenda(${venda.id})">
-             Excluir
-           </button>`
+        </td>
 
-          :
+      </tr>
 
-          ''
-        }
+    `).join("")
 
-      </td>
+    ||
 
-    </tr>
-
-    `
-  ).join('')
-
-  :
-
-  `
-  <tr>
-    <td colspan="7" class="muted">
-      Nenhuma venda encontrada.
-    </td>
-  </tr>
-  `;
+    '<tr><td colspan="7" class="muted">Nenhuma venda encontrada.</td></tr>';
 
 }
 
 
+/* =========================
+   EXCLUIR VENDA
+========================= */
+
 async function delVenda(id){
 
-  if(
-    session.role !== 'admin'
-  ){
-
+  if(session.role!=="admin")
     return;
 
-  }
 
-
-  if(
-    !confirm(
-      'Excluir esta venda?'
-    )
-  ){
-
+  if(!confirm("Excluir esta venda?"))
     return;
 
-  }
+
+  status("Excluindo venda...");
 
 
   try{
 
-    await api(
-      `vendas?id=eq.${id}`,
-      {
-        method:'DELETE',
-
-        headers:{
-          'Prefer':
-          'return=minimal'
-        }
-      }
-    );
+    const {error} =
+      await supabaseClient
+        .from("vendas")
+        .delete()
+        .eq("id",id);
 
 
-    await carregarBanco();
+    if(error)
+      throw error;
 
-    await renderTudo();
+
+    db.vendas =
+      db.vendas.filter(
+        v=>Number(v.id)!==Number(id)
+      );
+
+
+    renderTudo();
+
+    status("Venda excluída ✓");
 
 
   }catch(error){
 
     console.error(error);
 
+    status("Erro ao excluir");
+
     alert(
-      'Não foi possível excluir a venda.'
+      "Erro ao excluir venda:\n"+
+      (error.message || error)
     );
 
   }
@@ -1674,301 +1520,230 @@ async function delVenda(id){
 }
 
 
+/* =========================
+   RESUMO
+========================= */
+
 function renderResumo(){
 
-  const vendas =
-  visibleSales();
+  const a =
+    visibleSales();
 
 
   const total =
-  vendas.reduce(
-    (s,v) =>
-    s + Number(v.total || 0),
-    0
-  );
+    a.reduce(
+      (s,v)=>s+Number(v.total),
+      0
+    );
 
 
   const kg =
-  vendas.reduce(
-    (s,v) =>
-    s + Number(v.peso || 0),
-    0
-  );
+    a.reduce(
+      (s,v)=>s+Number(v.peso),
+      0
+    );
 
 
-  document.getElementById(
-    'kTotal'
-  ).textContent =
-  brl(total);
+  document.getElementById("kTotal")
+    .textContent=brl(total);
 
 
-  document.getElementById(
-    'kKg'
-  ).textContent =
-  kg.toFixed(2);
+  document.getElementById("kKg")
+    .textContent=kg.toFixed(2);
 
 
-  document.getElementById(
-    'kVendas'
-  ).textContent =
-  vendas.length;
+  document.getElementById("kVendas")
+    .textContent=a.length;
 
 
-  document.getElementById(
-    'kMedia'
-  ).textContent =
-  brl(
-    vendas.length
-      ? total / vendas.length
-      : 0
-  );
-
-
-  document.getElementById(
-    'porFunc'
-  ).innerHTML =
-
-  db.funcionarios
-  .map(
-    funcionario => {
-
-      const vendasFuncionario =
-      vendas.filter(
-        venda =>
-        venda.funcionario ===
-        funcionario.nome
+  document.getElementById("kMedia")
+    .textContent=
+      brl(
+        a.length
+          ? total/a.length
+          : 0
       );
 
 
-      const kgFuncionario =
-      vendasFuncionario.reduce(
-        (s,v) =>
-        s + Number(v.peso || 0),
-        0
-      );
+  document.getElementById("porFunc").innerHTML =
+
+    db.funcionarios.map(f=>{
+
+      const x =
+        a.filter(
+          v=>v.funcionario===f.nome
+        );
 
 
-      const totalFuncionario =
-      vendasFuncionario.reduce(
-        (s,v) =>
-        s + Number(v.total || 0),
-        0
-      );
+      const kgFunc =
+        x.reduce(
+          (s,v)=>s+Number(v.peso),
+          0
+        );
+
+
+      const valor =
+        x.reduce(
+          (s,v)=>s+Number(v.total),
+          0
+        );
 
 
       return `
 
-      <tr>
+        <tr>
 
-        <td>
-          ${esc(funcionario.nome)}
-        </td>
+          <td>${esc(f.nome)}</td>
 
-        <td>
-          ${kgFuncionario.toFixed(2)}
-        </td>
+          <td>${kgFunc.toFixed(2)}</td>
 
-        <td>
-          ${brl(totalFuncionario)}
-        </td>
+          <td>${brl(valor)}</td>
 
-        <td>
-          ${vendasFuncionario.length}
-        </td>
+          <td>${x.length}</td>
 
-      </tr>
+        </tr>
 
       `;
 
-    }
-  )
-  .join('');
+    }).join("");
 
 
-  document.getElementById(
-    'porMat'
-  ).innerHTML =
+  document.getElementById("porMat").innerHTML =
 
-  db.materiais
-  .map(
-    material => {
+    db.materiais.map(m=>{
 
-      const vendasMaterial =
-      vendas.filter(
-        venda =>
-        venda.material ===
-        material.nome
-      );
+      const x =
+        a.filter(
+          v=>v.material===m.nome
+        );
 
 
-      const kgMaterial =
-      vendasMaterial.reduce(
-        (s,v) =>
-        s + Number(v.peso || 0),
-        0
-      );
+      const kgMat =
+        x.reduce(
+          (s,v)=>s+Number(v.peso),
+          0
+        );
 
 
-      const totalMaterial =
-      vendasMaterial.reduce(
-        (s,v) =>
-        s + Number(v.total || 0),
-        0
-      );
+      const valor =
+        x.reduce(
+          (s,v)=>s+Number(v.total),
+          0
+        );
 
 
       return `
 
-      <tr>
+        <tr>
 
-        <td>
-          ${esc(material.nome)}
-        </td>
+          <td>${esc(m.nome)}</td>
 
-        <td>
-          ${kgMaterial.toFixed(2)}
-        </td>
+          <td>${kgMat.toFixed(2)}</td>
 
-        <td>
-          ${brl(totalMaterial)}
-        </td>
+          <td>${brl(valor)}</td>
 
-        <td>
-          ${vendasMaterial.length}
-        </td>
+          <td>${x.length}</td>
 
-      </tr>
+        </tr>
 
       `;
 
-    }
-  )
-  .join('');
+    }).join("");
 
 }
 
+
+/* =========================
+   CADASTROS
+========================= */
 
 function renderCad(){
 
-  document.getElementById(
-    'cadMat'
-  ).innerHTML =
+  document.getElementById("cadMat").innerHTML =
 
-  `
-  <tr>
-    <th>Material</th>
-    <th>Preço/kg</th>
-    <th></th>
-  </tr>
-  `
+    "<tr><th>Material</th><th>Preço/kg</th><th></th></tr>" +
 
-  +
+    db.materiais.map(m=>`
 
-  db.materiais
-  .map(
-    material => `
+      <tr>
 
-    <tr>
+        <td>${esc(m.nome)}</td>
 
-      <td>
-        ${esc(material.nome)}
-      </td>
+        <td>${brl(m.preco)}</td>
 
-      <td>
-        ${brl(material.preco)}
-      </td>
+        <td>
 
-      <td>
+          <button
+            class="danger"
+            onclick="delMat(${m.id})">
 
-        <button
-          class="danger"
-          onclick="delMat(${material.id})">
+            Excluir
 
-          Excluir
+          </button>
 
-        </button>
+        </td>
 
-      </td>
+      </tr>
 
-    </tr>
-
-    `
-  )
-  .join('');
+    `).join("");
 
 
-  document.getElementById(
-    'cadFunc'
-  ).innerHTML =
+  document.getElementById("cadFunc").innerHTML =
 
-  `
-  <tr>
-    <th>Funcionário</th>
-    <th>Usuário</th>
-    <th></th>
-  </tr>
-  `
+    "<tr><th>Funcionário</th><th>Usuário</th><th></th></tr>" +
 
-  +
+    db.funcionarios.map(f=>`
 
-  db.funcionarios
-  .map(
-    funcionario => `
+      <tr>
 
-    <tr>
+        <td>${esc(f.nome)}</td>
 
-      <td>
-        ${esc(funcionario.nome)}
-      </td>
+        <td>${esc(f.usuario)}</td>
 
-      <td>
-        ${esc(funcionario.usuario)}
-      </td>
+        <td>
 
-      <td>
+          <button
+            class="danger"
+            onclick="delFunc(${f.id})">
 
-        <button
-          class="danger"
-          onclick="delFunc(${funcionario.id})">
+            Excluir
 
-          Excluir
+          </button>
 
-        </button>
+        </td>
 
-      </td>
+      </tr>
 
-    </tr>
-
-    `
-  )
-  .join('');
+    `).join("");
 
 }
 
 
+/* =========================
+   ADICIONAR MATERIAL
+========================= */
+
 async function addMaterial(){
 
-  const nome =
-  document.getElementById(
-    'novoMat'
-  ).value.trim();
+  const n =
+    document
+      .getElementById("novoMat")
+      .value
+      .trim();
 
 
-  const preco =
-  Number(
-    document.getElementById(
-      'novoPreco'
-    ).value
-  );
+  const p =
+    Number(
+      document
+        .getElementById("novoPreco")
+        .value
+    );
 
 
-  if(
-    !nome ||
-    preco < 0
-  ){
+  if(!n || p<0){
 
     alert(
-      'Informe material e preço.'
+      "Informe material e preço."
     );
 
     return;
@@ -1978,58 +1753,55 @@ async function addMaterial(){
 
   if(
     db.materiais.some(
-      material =>
-      material.nome.toLowerCase() ===
-      nome.toLowerCase()
+      x=>
+        x.nome.toLowerCase()===
+        n.toLowerCase()
     )
   ){
 
-    alert(
-      'Material já cadastrado.'
-    );
+    alert("Material já cadastrado.");
 
     return;
 
   }
 
 
+  status("Salvando material...");
+
+
   try{
 
-    await api(
-      'materiais',
-      {
-        method:'POST',
+    const {data,error} =
+      await supabaseClient
+        .from("materiais")
+        .insert({
 
-        headers:{
-          'Prefer':
-          'return=minimal'
-        },
-
-        body:JSON.stringify({
-
-          nome:nome,
-
-          preco:preco
+          nome:n,
+          preco:p
 
         })
-
-      }
-    );
-
-
-    await carregarBanco();
-
-    await renderTudo();
+        .select()
+        .single();
 
 
-    document.getElementById(
-      'novoMat'
-    ).value = '';
+    if(error)
+      throw error;
 
 
-    document.getElementById(
-      'novoPreco'
-    ).value = '';
+    db.materiais.push(data);
+
+
+    document.getElementById("novoMat")
+      .value="";
+
+
+    document.getElementById("novoPreco")
+      .value="";
+
+
+    renderTudo();
+
+    status("Material salvo ✓");
 
 
   }catch(error){
@@ -2037,7 +1809,8 @@ async function addMaterial(){
     console.error(error);
 
     alert(
-      'Erro ao adicionar material.'
+      "Erro ao cadastrar material:\n"+
+      (error.message || error)
     );
 
   }
@@ -2045,34 +1818,36 @@ async function addMaterial(){
 }
 
 
+/* =========================
+   ADICIONAR FUNCIONÁRIO
+========================= */
+
 async function addFuncionario(){
 
-  const nome =
-  document.getElementById(
-    'novoFunc'
-  ).value.trim();
+  const n =
+    document
+      .getElementById("novoFunc")
+      .value
+      .trim();
 
 
-  const usuario =
-  document.getElementById(
-    'novoUser'
-  ).value.trim();
+  const u =
+    document
+      .getElementById("novoUser")
+      .value
+      .trim();
 
 
-  const senha =
-  document.getElementById(
-    'novoPass'
-  ).value;
+  const p =
+    document
+      .getElementById("novoPass")
+      .value;
 
 
-  if(
-    !nome ||
-    !usuario ||
-    !senha
-  ){
+  if(!n || !u || !p){
 
     alert(
-      'Preencha nome, usuário e senha.'
+      "Preencha nome, usuário e senha."
     );
 
     return;
@@ -2082,65 +1857,58 @@ async function addFuncionario(){
 
   if(
     db.funcionarios.some(
-      funcionario =>
-      funcionario.usuario ===
-      usuario
+      x=>x.usuario===u
     )
   ){
 
-    alert(
-      'Usuário já existe.'
-    );
+    alert("Usuário já existe.");
 
     return;
 
   }
 
 
+  status("Salvando funcionário...");
+
+
   try{
 
-    await api(
-      'funcionarios',
-      {
-        method:'POST',
+    const {data,error} =
+      await supabaseClient
+        .from("funcionarios")
+        .insert({
 
-        headers:{
-          'Prefer':
-          'return=minimal'
-        },
-
-        body:JSON.stringify({
-
-          nome:nome,
-
-          usuario:usuario,
-
-          senha:senha
+          nome:n,
+          usuario:u,
+          senha:p
 
         })
-
-      }
-    );
-
-
-    await carregarBanco();
-
-    await renderTudo();
+        .select()
+        .single();
 
 
-    document.getElementById(
-      'novoFunc'
-    ).value = '';
+    if(error)
+      throw error;
 
 
-    document.getElementById(
-      'novoUser'
-    ).value = '';
+    db.funcionarios.push(data);
 
 
-    document.getElementById(
-      'novoPass'
-    ).value = '';
+    document.getElementById("novoFunc")
+      .value="";
+
+
+    document.getElementById("novoUser")
+      .value="";
+
+
+    document.getElementById("novoPass")
+      .value="";
+
+
+    renderTudo();
+
+    status("Funcionário salvo ✓");
 
 
   }catch(error){
@@ -2148,45 +1916,54 @@ async function addFuncionario(){
     console.error(error);
 
     alert(
-      'Erro ao adicionar funcionário.'
+      "Erro ao cadastrar funcionário:\n"+
+      (error.message || error)
     );
 
   }
 
 }
 
+
+/* =========================
+   EXCLUIR MATERIAL
+========================= */
 
 async function delMat(id){
 
   if(
     !confirm(
-      'Excluir material? Vendas antigas serão mantidas.'
+      "Excluir material? Vendas antigas serão mantidas."
     )
-  ){
-
+  )
     return;
 
-  }
+
+  status("Excluindo material...");
 
 
   try{
 
-    await api(
-      `materiais?id=eq.${id}`,
-      {
-        method:'DELETE',
-
-        headers:{
-          'Prefer':
-          'return=minimal'
-        }
-      }
-    );
+    const {error} =
+      await supabaseClient
+        .from("materiais")
+        .delete()
+        .eq("id",id);
 
 
-    await carregarBanco();
+    if(error)
+      throw error;
 
-    await renderTudo();
+
+    db.materiais =
+      db.materiais.filter(
+        m=>Number(m.id)!==Number(id)
+      );
+
+
+    renderTudo();
+
+    status("Material excluído ✓");
 
 
   }catch(error){
@@ -2194,45 +1971,54 @@ async function delMat(id){
     console.error(error);
 
     alert(
-      'Não foi possível excluir o material.'
+      "Erro ao excluir material:\n"+
+      (error.message || error)
     );
 
   }
 
 }
 
+
+/* =========================
+   EXCLUIR FUNCIONÁRIO
+========================= */
 
 async function delFunc(id){
 
   if(
     !confirm(
-      'Excluir funcionário? Vendas antigas serão mantidas.'
+      "Excluir funcionário? Vendas antigas serão mantidas."
     )
-  ){
-
+  )
     return;
 
-  }
+
+  status("Excluindo funcionário...");
 
 
   try{
 
-    await api(
-      `funcionarios?id=eq.${id}`,
-      {
-        method:'DELETE',
-
-        headers:{
-          'Prefer':
-          'return=minimal'
-        }
-      }
-    );
+    const {error} =
+      await supabaseClient
+        .from("funcionarios")
+        .delete()
+        .eq("id",id);
 
 
-    await carregarBanco();
+    if(error)
+      throw error;
 
-    await renderTudo();
+
+    db.funcionarios =
+      db.funcionarios.filter(
+        f=>Number(f.id)!==Number(id)
+      );
+
+
+    renderTudo();
+
+    status("Funcionário excluído ✓");
 
 
   }catch(error){
@@ -2240,7 +2026,8 @@ async function delFunc(id){
     console.error(error);
 
     alert(
-      'Não foi possível excluir o funcionário.'
+      "Erro ao excluir funcionário:\n"+
+      (error.message || error)
     );
 
   }
@@ -2248,25 +2035,24 @@ async function delFunc(id){
 }
 
 
-async function renderTudo(){
+/* =========================
+   ATUALIZAR TUDO
+========================= */
+
+function renderTudo(){
+
+  if(!session)
+    return;
+
 
   fill();
 
   updateTotal();
 
-  if(!session){
-
-    return;
-
-  }
-
-
   renderHistorico();
 
 
-  if(
-    session.role === 'admin'
-  ){
+  if(session.role==="admin"){
 
     renderResumo();
 
@@ -2277,40 +2063,173 @@ async function renderTudo(){
 }
 
 
-document.getElementById(
-  'material'
-).onchange =
-updateTotal;
+/* =========================
+   EVENTOS
+========================= */
+
+document
+  .getElementById("material")
+  .addEventListener(
+    "change",
+    updateTotal
+  );
 
 
-document.getElementById(
-  'peso'
-).oninput =
-updateTotal;
+document
+  .getElementById("peso")
+  .addEventListener(
+    "input",
+    updateTotal
+  );
 
 
-if(
-  'serviceWorker' in navigator
-){
+/* =========================
+   SINCRONIZAÇÃO AUTOMÁTICA
+========================= */
+
+/*
+   A cada 5 segundos o aplicativo
+   consulta novamente o Supabase.
+
+   Assim, se João registrar uma venda
+   no celular dele, o administrador
+   receberá a informação sem precisar
+   cadastrar a venda novamente.
+*/
+
+setInterval(
+  async ()=>{
+
+    if(!session)
+      return;
+
+
+    try{
+
+      const [
+        materiaisRes,
+        funcionariosRes,
+        vendasRes
+      ] = await Promise.all([
+
+        supabaseClient
+          .from("materiais")
+          .select("*")
+          .order("id"),
+
+        supabaseClient
+          .from("funcionarios")
+          .select("*")
+          .order("id"),
+
+        supabaseClient
+          .from("vendas")
+          .select("*")
+          .order("id",{ascending:false})
+
+      ]);
+
+
+      if(
+        materiaisRes.error ||
+        funcionariosRes.error ||
+        vendasRes.error
+      )
+        return;
+
+
+      db.materiais =
+        materiaisRes.data || [];
+
+
+      db.funcionarios =
+        funcionariosRes.data || [];
+
+
+      db.vendas =
+        (vendasRes.data || []).map(v=>({
+
+          id:v.id,
+
+          data:v.data,
+
+          funcionario:v.funcionario,
+
+          material:v.material,
+
+          peso:Number(v.peso),
+
+          preco:Number(v.preco),
+
+          total:Number(v.total),
+
+          obs:v.observacao || ""
+
+        }));
+
+
+      renderTudo();
+
+      status(
+        "Sincronizado ✓ "+
+        new Date().toLocaleTimeString("pt-BR")
+      );
+
+
+    }catch(error){
+
+      console.error(
+        "Erro na sincronização:",
+        error
+      );
+
+    }
+
+  },
+  5000
+);
+
+
+/* =========================
+   SERVICE WORKER
+========================= */
+
+if("serviceWorker" in navigator){
 
   window.addEventListener(
-    'load',
-    function(){
+    "load",
+    ()=>{
 
       navigator.serviceWorker
-      .register('./sw.js')
-      .catch(
-        error =>
-        console.log(
-          'Service Worker:',
-          error
-        )
-      );
+        .register("./sw.js")
+        .catch(
+          error=>
+            console.error(
+              "Erro no Service Worker:",
+              error
+            )
+        );
 
     }
   );
 
 }
+
+
+/* =========================
+   INÍCIO
+========================= */
+
+window.addEventListener(
+  "load",
+  ()=>{
+
+    status(
+      "Conectando ao banco..."
+    );
+
+  }
+);
 
 </script>
 
