@@ -1,43 +1,22 @@
-const CACHE_NAME = "ferro-velho-pwa-v4";
-
-const FILES_TO_CACHE = [
-  "./manifest.json"
-];
+const CACHE_NAME = "controle-vendas-pwa-v5";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(FILES_TO_CACHE))
-  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) =>
+    caches.keys().then((names) =>
       Promise.all(
-        cacheNames
+        names
           .filter((name) => name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       )
-    )
-  );
-  self.clients.claim();
-});
-
-self.addEventListener("fetch", (event) => {
-  const request = event.request;
-  if (request.method !== "GET") return;
-
-  // Sempre busca a aplicação atualizada na rede. Isso evita que o Android
-  // continue usando uma versão antiga do Controle de Vendas.
-  if (request.mode === "navigate" || request.url.endsWith("/index.html")) {
-    event.respondWith(
-      fetch(request, { cache: "no-store" }).catch(() => caches.match("./manifest.json"))
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
+    ).then(() => self.clients.claim())
   );
 });
+
+// Intencionalmente não interceptamos fetch().
+// A página, os scripts e as chamadas ao Supabase devem usar a rede normal.
+// Isso evita que um erro do Service Worker deixe o aplicativo preso em
+// "Conectando..." ou substitua a página por um arquivo de cache inadequado.
