@@ -10,8 +10,12 @@
 
   async function syncNow() {
     try {
-      if (typeof carregar === 'function' && typeof saving !== 'undefined' && !saving) await carregar();
-    } catch (e) { console.error('Sincronização:', e); }
+      if (typeof carregar === 'function' && typeof saving !== 'undefined' && !saving) {
+        await carregar();
+      }
+    } catch (e) {
+      console.error('Sincronização:', e);
+    }
   }
 
   function subscribe() {
@@ -45,8 +49,11 @@
     if (typeof session !== 'undefined' && session) subscribe();
   }
 
+  // Registra somente o Service Worker seguro da versão 5.
+  // Ele não intercepta fetch(), portanto não pode bloquear o carregamento
+  // do aplicativo nem as chamadas ao Supabase.
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js?v=4', { updateViaCache: 'none' })
+    navigator.serviceWorker.register('./sw.js?v=5', { updateViaCache: 'none' })
       .then((reg) => reg.update().catch(() => {}))
       .catch((e) => console.warn('Service Worker:', e));
   }
@@ -59,5 +66,6 @@
       return result;
     };
   }
+
   setTimeout(startAfterLogin, 500);
 })();
