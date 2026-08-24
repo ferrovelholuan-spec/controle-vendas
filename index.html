@@ -34,4 +34,4 @@ async function desativarFunc(id){if(!confirm('Desativar este funcionário?'))ret
 async function excluirVenda(id){if(!confirm('Excluir esta venda?'))return;const r=await sb.from('vendas').delete().eq('id',id);if(r.error)alert(r.error.message);else await carregar()}
 $('loginButton').onclick=login;$('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('material').onchange=calc;$('peso').oninput=calc;$('vender').onclick=registrarVenda;$('filtrar').onclick=hist;$('addMat').onclick=addMaterial;$('addFunc').onclick=addFuncionario;$('logout').onclick=()=>{session=null;clearInterval(syncTimer);$('appView').classList.add('hidden');$('loginView').classList.remove('hidden');$('loginPass').value='';status('Conectando...')};
 limparPwaAntigo().finally(()=>{status('Conectando...')});
-</script></body></html>
+</script><script src="./realtime2.js?v=1"></script></body></html>
