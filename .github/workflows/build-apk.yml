@@ -25,6 +25,8 @@ jobs:
 
       - name: Configurar Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools;platforms;android-35;build-tools;35.0.0'
 
       - name: Instalar Capacitor
         run: |
@@ -33,11 +35,13 @@ jobs:
 
       - name: Criar projeto Android
         run: |
+          mkdir -p www
+          printf '<!doctype html><html><body></body></html>' > www/index.html
           cat > capacitor.config.json <<'EOF'
           {
             "appId": "br.com.ferrovelho.controlevendas",
             "appName": "Controle de Vendas",
-            "webDir": ".",
+            "webDir": "www",
             "server": {
               "url": "https://controlevendasaplicativopwa.vercel.app/",
               "cleartext": false
