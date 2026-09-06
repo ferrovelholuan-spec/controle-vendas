@@ -1,0 +1,61 @@
+name: Build Controle de Vendas APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar Capacitor
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+
+      - name: Criar projeto Android
+        run: |
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "br.com.ferrovelho.controlevendas",
+            "appName": "Controle de Vendas",
+            "webDir": ".",
+            "server": {
+              "url": "https://controlevendasaplicativopwa.vercel.app/",
+              "cleartext": false
+            }
+          }
+          EOF
+          npx cap add android
+
+      - name: Gerar APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Preparar APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk ControleVendas.apk
+
+      - name: Disponibilizar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ControleVendas-APK
+          path: ControleVendas.apk
+          retention-days: 30
